@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>자리배치 도구 (6×6 / 5×6)</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <header class="app-header">
+    <div class="title-block">
+      <label for="titleInput" class="sr-only">제목 입력</label>
+      <input id="titleInput" type="text" placeholder="예: 2학년 1반 지구과학 자리배치 (2025-11-07)"/>
+      <button id="applyTitleBtn" class="primary">제목 적용</button>
+    </div>
+    <h1 id="titleDisplay" class="title-display">자리배치표</h1>
+    <p class="subtitle">학번+이름 입력 → 수동/자동 배치 → 잠금/저장/인쇄</p>
+  </header>
+
+  <main class="layout">
+    <!-- 좌 패널: 설정/명단/미배정 -->
+    <section class="panel left">
+      <h2>① 명단 입력</h2>
+      <textarea id="namesInput" rows="10" placeholder="한 줄에 '학번 공백 이름' 형식으로 입력하세요.
+예)
+101 김가영
+102 이다윤
+103 박준호"></textarea>
+      <div class="buttons">
+        <button id="applyNamesBtn" class="primary">명단 반영</button>
+        <button id="clearAllBtn">모두 비우기(잠금좌석/이름잠금 유지)</button>
+      </div>
+
+      <h2>② 배치 옵션</h2>
+      <div class="form-row">
+        <label>그리드</label>
+        <select id="gridSizeSelect">
+          <option value="6x6" selected>6 × 6 (36석)</option>
+          <option value="5x6">5 × 6 (30석)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>보기 모드</label>
+        <select id="viewModeSelect">
+          <option value="top" selected>교탁 위</option>
+          <option value="bottom">교탁 아래</option>
+          <option value="both">양쪽 보기(두 버전)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>자동 배치 모드</label>
+        <select id="autoModeSelect">
+          <option value="random" selected>랜덤</option>
+          <option value="order">순서(기본=학번 오름차순)</option>
+        </select>
+      </div>
+
+      <div class="form-row" id="orderBasisRow">
+        <label>순서 기준</label>
+        <select id="orderBasisSelect">
+          <option value="id" selected>학번 오름차순</option>
+          <option value="input">입력 순서</option>
+          <option value="name">이름 오름차순</option>
+        </select>
+      </div>
+
+      <div class="buttons">
+        <button id="autoFillEmptyBtn">빈자리만 자동 배치</button>
+        <button id="autoFillAllBtn">전체 자동 배치</button>
+      </div>
+
+      <h2>③ 이름 잠금(학번→좌석)</h2>
+      <div class="lock-name">
+        <div class="form-row">
+          <label for="lockIdInput">학번</label>
+          <input id="lockIdInput" type="text" placeholder="예: 101"/>
+        </div>
+        <div class="form-row">
+          <label for="lockSeatInput">좌석번호</label>
+          <input id="lockSeatInput" type="number" min="1" step="1" placeholder="예: 1"/>
+        </div>
+        <div class="buttons">
+          <button id="addNameLockBtn">이름 잠금 추가</button>
+          <button id="removeNameLockBtn">이름 잠금 해제</button>
+        </div>
+        <ul id="nameLockList" class="list small"></ul>
+      </div>
+
+      <h2>④ 미배정 목록</h2>
+      <ul id="unassignedList" class="list" aria-label="미배정 인원 목록"></ul>
+
+      <h2>⑤ 저장/불러오기</h2>
+      <div class="buttons">
+        <button id="saveBtn">로컬 저장</button>
+        <button id="loadBtn">로컬 불러오기</button>
+        <button id="exportBtn">JSON 내보내기</button>
+        <label class="import-label">
+          JSON 가져오기
+          <input id="importInput" type="file" accept="application/json" hidden />
+        </label>
+      </div>
+
+      <h2>⑥ 인쇄</h2>
+      <label class="check">
+        <input type="checkbox" id="printBothCheckbox"/>
+        인쇄 시 두 버전(교탁 위+아래) 함께 출력
+      </label>
+      <div class="buttons">
+        <button id="printBtn">인쇄</button>
+      </div>
+
+      <details class="help">
+        <summary>도움말</summary>
+        <ul>
+          <li>미배정에서 인원을 클릭(선택)하거나 드래그해 좌석에 배정할 수 있습니다.</li>
+          <li>좌석 **우상단 🔒 아이콘**으로 잠금 토글(빈좌석=비활성잠금 / 배정좌석=점유잠금).</li>
+          <li>좌석 **우클릭 메뉴**로 세부 조작(비활성잠금/해제, 점유잠금/해제, 좌석 비우기 등).</li>
+          <li>“모두 비우기”는 잠금 상태와 이름잠금 매핑은 그대로 유지합니다.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- 우 패널: 좌석 그리드 뷰 -->
+    <section class="panel right">
+      <div class="grid-header">
+        <h2>좌석(보기)</h2>
+        <div class="legend">
+          <span class="badge empty">빈자리</span>
+          <span class="badge filled">배정됨</span>
+          <span class="badge disabled">비활성잠금</span>
+          <span class="badge locked">점유잠금</span>
+        </div>
+      </div>
+
+      <div id="views">
+        <!-- 교탁 위 -->
+        <div class="view-block" id="view-top" data-view="top">
+          <h3 class="view-title">교탁: 위</h3>
+          <div class="grid" id="grid-top" role="grid" aria-label="좌석(교탁 위)"></div>
+        </div>
+        <!-- 교탁 아래 -->
+        <div class="view-block" id="view-bottom" data-view="bottom">
+          <h3 class="view-title">교탁: 아래</h3>
+          <div class="grid" id="grid-bottom" role="grid" aria-label="좌석(교탁 아래)"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 우클릭 컨텍스트 메뉴 -->
+  <menu id="ctxMenu" class="ctx-menu" type="context">
+    <button data-act="toggleDisabled">비활성 잠금 토글</button>
+    <button data-act="toggleOccupantLock">점유 잠금 토글</button>
+    <button data-act="clearSeat">좌석 비우기</button>
+  </menu>
+
+  <footer class="app-footer">
+    <small>Vanilla HTML/CSS/JS • GitHub Pages 호스팅용</small>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
